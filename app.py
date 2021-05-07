@@ -41,12 +41,12 @@ app.layout = html.Div(children=[
               Input('interval-component', 'n_intervals'))
 def update_display(n):
     df = pd.read_csv("data.csv",index_col='height')
-    style = {'padding': '5px', 'fontSize': '16px'}
     text = [
         html.Ul(children=[
-            html.Li(html.Span('Current Height: {}'.format(df.iat[-1,0]), style=style)),
-            html.Li(html.Span('{} of the last 100 blocks signaling'.format(df[-100:]['signal'].sum()), style=style)),
-            html.Li(html.Span('{:.2f}% chance that we have reached 90%'.format(1- binom.cdf(90,100, df[-100:]['signal'].sum()/100)), style=style))
+            html.Li(html.Span('Current Height: {}'.format(df.index[-1]))),
+            html.Li(html.Span('{}/2016 completed for period'.format((df.index[-1] - df.index[0] + 1) % 2017 ))),
+            html.Li(html.Span('{} of the last 100 blocks signaling'.format(df[-100:]['signal'].sum()))),
+            html.Li(html.Span('{:.2f}% chance that we have reached 90%'.format(1- binom.cdf(90,100, df[-100:]['signal'].sum()/100))))
         ])
     ]
 
@@ -65,9 +65,9 @@ def ma_plot(df):
     d = np.polyfit(df.index.values, df['100BlockMA'], 1)
     f = np.poly1d(d)
     last_2016 = df[-2016:].copy()
-    first_height = last_2016.index.values[0]
+    first_height = last_2016.index[0]
     last_2016 = last_2016.reindex(np.arange(first_height, first_height + 2016))
-    last_2016['line'] = f(last_2016.index.values)
+    last_2016['line'] = f(last_2016.index)
     fig = px.line(last_2016, y=["100BlockMA","line"], range_y = [0,1],  color_discrete_sequence=["blue", "#2CA02C"])
     fig.update_layout(title={ 'text' : "Number Go Up -- 100 block moving average with predicative green line (powered by deep learning)", 'x': 0.5 })
     fig.update_yaxes(dtick=0.05)
