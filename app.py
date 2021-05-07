@@ -17,7 +17,7 @@ app = dash.Dash(__name__)
 
 app.layout = html.Div(children=[
     dcc.Markdown('''
-    # Lloyd's Taproot Charts
+    # LLFourn's Taproot Charts
 
     Data lifted from [taproot.watch](https://taproot.watch). Code at https://github.com/LLFourn/taproot-chart.
     '''),
@@ -40,7 +40,7 @@ app.layout = html.Div(children=[
               Output('scatter-chart', 'figure'),
               Input('interval-component', 'n_intervals'))
 def update_display(n):
-    df = pd.read_csv("data.csv")
+    df = pd.read_csv("data.csv",index_col='height')
     style = {'padding': '5px', 'fontSize': '16px'}
     text = [
         html.Ul(children=[
@@ -53,21 +53,26 @@ def update_display(n):
     return text, ma_plot(df), scatter_plot(df)
 
 def scatter_plot(df):
-    fig = px.strip(df, x="height", y="miner", color="signal", color_discrete_sequence=["red", "#2CA02C"], title="Green Dot Good, Red Dot Bad")
+    fig = px.strip(df, y="miner", x=df.index, color="signal", color_discrete_sequence=["red", "#2CA02C"])
     fig.update_layout(height=1000)
-    fig.update_yaxes(categoryorder='total ascending')
+    fig.update_xaxes(dtick=24*6, tickformat="d")
+    fig.update_yaxes(categoryorder='total ascending', showgrid=True, tickson="boundaries")
+    fig.update_layout(title={ 'text' :"Green Dot Good, Red Dot Bad", 'x': 0.5 })
     return fig
 
 def ma_plot(df):
     df['100BlockMA'] = df['signal'].rolling(window=100,min_periods=1).mean()
-    d = np.polyfit(df['height'], df['100BlockMA'], 1)
+    d = np.polyfit(df.index.values, df['100BlockMA'], 1)
     f = np.poly1d(d)
     last_2016 = df[-2016:].copy()
-    last_2016['line'] =  f(last_2016['height'])
-    first_height = last_2016.iat[0,0]
-    fig = px.line(last_2016, y=["100BlockMA","line"], range_y = [0,1], range_x = [ 0, 2016], color_discrete_sequence=["blue", "#2CA02C"], title="Green Line Go Up (100 block moving average with predicative green line powered by deep learning)")
+    first_height = last_2016.index.values[0]
+    last_2016 = last_2016.reindex(np.arange(first_height, first_height + 2016))
+    last_2016['line'] = f(last_2016.index.values)
+    fig = px.line(last_2016, y=["100BlockMA","line"], range_y = [0,1],  color_discrete_sequence=["blue", "#2CA02C"])
+    fig.update_layout(title={ 'text' : "Number Go Up -- 100 block moving average with predicative green line (powered by deep learning)", 'x': 0.5 })
     fig.update_yaxes(dtick=0.05)
-    fig.update_xaxes(dtick=100)
+    fig.update_xaxes(dtick=24*6, tickformat="d")
+    fig.add_hline(y=0.9)
     return fig
 
 def steal_data():
@@ -80,5 +85,6 @@ def steal_data():
         r.raise_for_status()
 
 if __name__ == '__main__':
+    # To actually run in production use waitress_server.py
     steal_data()
     app.run_server(debug=True)
