@@ -10,25 +10,20 @@ import requests as rq
 import time
 from scipy.stats import binom
 
-from datetime import datetime
 
 from dash.dependencies import Input, Output
-# external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
 app = dash.Dash(__name__)
 
-# assume you have a "long-form" data frame
-# see https://plotly.com/python/px-arguments/ for more options
-
-
 app.layout = html.Div(children=[
-    html.H1(children='Red Line Good. Number Go Up.'),
+    dcc.Markdown('''
+    # Lloyd's Taproot Charts
+
+    Data lifted from [taproot.watch](https://taproot.watch). Code at https://github.com/LLFourn/taproot-chart.
+    '''),
     html.Div(id='live-update-text'),
     dcc.Graph(
         id='taproot-chart',
-    ),
-    dcc.Graph(
-        id='binom-chart',
     ),
     dcc.Graph(
         id='scatter-chart'
@@ -42,25 +37,25 @@ app.layout = html.Div(children=[
 
 @app.callback(Output('live-update-text', 'children'),
               Output('taproot-chart', 'figure'),
-              Output('binom-chart', 'figure'),
               Output('scatter-chart', 'figure'),
               Input('interval-component', 'n_intervals'))
-def update_metrics(n):
+def update_display(n):
     df = pd.read_csv("data.csv")
     style = {'padding': '5px', 'fontSize': '16px'}
     text = [
         html.Ul(children=[
             html.Li(html.Span('Current Height: {}'.format(df.iat[-1,0]), style=style)),
             html.Li(html.Span('{} of the last 100 blocks signaling'.format(df[-100:]['signal'].sum()), style=style)),
-            html.Li(html.Span('{:.2f}% that we have reached 90%'.format(1- binom.cdf(90,100, df[-100:]['signal'].sum()/100)), style=style))
+            html.Li(html.Span('{:.2f}% chance that we have reached 90%'.format(1- binom.cdf(90,100, df[-100:]['signal'].sum()/100)), style=style))
         ])
     ]
 
-
-    return text, ma_plot(df), binom_plot(df), scatter_plot(df)
+    return text, ma_plot(df), scatter_plot(df)
 
 def scatter_plot(df):
-    fig = px.strip(df, x="height", color="signal")
+    fig = px.strip(df, x="height", y="miner", color="signal", color_discrete_sequence=["red", "#2CA02C"], title="Green Dot Good, Red Dot Bad")
+    fig.update_layout(height=1000)
+    fig.update_yaxes(categoryorder='total ascending')
     return fig
 
 def ma_plot(df):
@@ -70,52 +65,20 @@ def ma_plot(df):
     last_2016 = df[-2016:].copy()
     last_2016['line'] =  f(last_2016['height'])
     first_height = last_2016.iat[0,0]
-    fig = px.line(last_2016, y=["100BlockMA","line"], range_y = [0,1], range_x = [ 0, 2016])
+    fig = px.line(last_2016, y=["100BlockMA","line"], range_y = [0,1], range_x = [ 0, 2016], color_discrete_sequence=["blue", "#2CA02C"], title="Green Line Go Up (100 block moving average with predicative green line powered by deep learning)")
     fig.update_yaxes(dtick=0.05)
     fig.update_xaxes(dtick=100)
     return fig
 
-def binom_plot(df):
-    data = [ [i, 1- binom.cdf(i,100, df[-100:]['signal'].sum()/100), 1- binom.cdf(i*5,500, df[-500:]['signal'].sum()/500),] for i in range(10,91) ]
-    dist = pd.DataFrame(data, columns = ['%signal', 'last 100', 'last 500'])
-    binom_plot = px.line(dist, x='%signal', y=['last 100', 'last 500'])
-    return binom_plot
-
-
-def check_next_block(df):
-    height = df.iat[-1,0] + 1;
-    r = rq.get("https://mempool.space/api/block-height/" + str(height))
+def steal_data():
+    r = rq.get("https://taproot.watch/blocks")
     if r.status_code == 200:
-        block = r.text
-        r = rq.get("https://mempool.space/api/block/" + block)
-        signal = (r.json()["version"] & 0x04) >> 2
-        print(r.text)
-        print(datetime.now(), height, block, signal)
-        new_row = pd.DataFrame(data= { 'height': [height], 'signal' : [signal] })
-        df = df.append(new_row)
+        json = r.json()
+        df = pd.DataFrame([[row['height'],row['miner'],row['signals']] for row in json if 'miner' in row], columns =['height', 'miner', 'signal'])
         df.to_csv("data.csv", index=False)
-    elif r.status_code == 404:
-        time.sleep(60)
     else:
-        print(r.status_code)
-        print(r.text)
-        time.sleep(600)
-
-    return df
-
-
-def check_loop(check_pid):
-    df =  pd.read_csv("data.csv")
-    while True:
-        if os.getppid() != check_pid:
-            sys.exit(1)
-        try:
-            df = check_next_block(df)
-        except Exception as e:
-            print(e)
-            time.sleep(60)
-
+        r.raise_for_status()
 
 if __name__ == '__main__':
-    check_loop(os.getppid())
-#    app.run_server(debug=True)
+    steal_data()
+    app.run_server(debug=True)
