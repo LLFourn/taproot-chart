@@ -1,6 +1,7 @@
-dash
-pandas
+dash==1.20
+pandas==1.2.4
 numpy
 plotly
 requests
 scipy
+waitress
