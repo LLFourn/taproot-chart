@@ -66,8 +66,8 @@ def scatter_plot(df):
     fig = px.strip(df, y="miner", x=df.index, color="signal", color_discrete_sequence=["red", "#2CA02C"])
     fig.update_layout(height=1000)
     fig.update_xaxes(dtick=24*6, tickformat="d")
-    fig.update_yaxes(categoryorder='total ascending', showgrid=True, tickson="boundaries")
-    fig.update_layout(title={ 'text' :"Green Dot Good, Red Dot Bad", 'x': 0.5 })
+    fig.update_yaxes(categoryorder='total ascending', showgrid=True, tickson="boundaries",title=None)
+    fig.update_layout(title={ 'text' :"Green Dot Good, Red Dot Bad (dots are blocks)", 'x': 0.5 })
     return fig
 
 def ma_plot(df):
@@ -80,7 +80,7 @@ def ma_plot(df):
     last_2016['line'] = f(last_2016.index)
     fig = px.line(last_2016, y=["100BlockMA","line"], range_y = [0,1],  color_discrete_sequence=["blue", "#2CA02C"])
     fig.update_layout(title={ 'text' : "Number Go Up -- 100 block moving average with predicative green line (powered by deep learning)", 'x': 0.5 })
-    fig.update_yaxes(dtick=0.05)
+    fig.update_yaxes(dtick=0.05, title='signal fraction of last 100 blocks')
     fig.update_xaxes(dtick=24*6, tickformat="d")
     fig.add_hline(y=0.9)
     fig.add_vline(first_height + 2016)
