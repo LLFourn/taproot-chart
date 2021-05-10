@@ -120,7 +120,7 @@ def mining_power(df):
     fig = px.area(data[ordered_miners], color_discrete_map=color_map, groupnorm='fraction')
     fig.update_xaxes(dtick=24*6, tickformat="d")
     fig.update_layout(height=1000)
-    fig.update_layout(title={ 'text' : "Share of mining power with signal color", 'x': 0.5 })
+    fig.update_layout(title={ 'text' : "Share of block creation with signal color", 'x': 0.5 })
     fig.update_layout(showlegend=False)
     fig.update_yaxes(dtick=0.1)
     return fig
