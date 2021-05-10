@@ -5,3 +5,4 @@ plotly
 requests
 scipy
 waitress
+colour==0.1.5

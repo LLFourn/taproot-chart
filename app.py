@@ -1,4 +1,5 @@
 import dash
+from colour import Color
 import dash_core_components as dcc
 import dash_html_components as html
 import plotly.express as px
@@ -9,6 +10,7 @@ import sys
 import requests as rq
 import time
 from scipy.stats import binom
+import random
 
 
 from dash.dependencies import Input, Output
@@ -28,6 +30,12 @@ app.layout = html.Div(children=[
     dcc.Graph(
         id='scatter-chart'
     ),
+    dcc.Graph(
+        id='mining-power-chart'
+    ),
+    dcc.Graph(
+        id='inconsistent-chart'
+    ),
     dcc.Interval(
         id='interval-component',
         interval=60*1000, # in milliseconds
@@ -38,6 +46,8 @@ app.layout = html.Div(children=[
 @app.callback(Output('live-update-text', 'children'),
               Output('taproot-chart', 'figure'),
               Output('scatter-chart', 'figure'),
+              Output('mining-power-chart', 'figure'),
+              Output('inconsistent-chart', 'figure'),
               Input('interval-component', 'n_intervals'))
 def update_display(n):
     df = pd.read_csv("data.csv",index_col='height')
@@ -50,7 +60,7 @@ def update_display(n):
         ])
     ]
 
-    return text, ma_plot(df), scatter_plot(df)
+    return text, ma_plot(df), scatter_plot(df),  mining_power(df), inconsistent_ma(df),
 
 def scatter_plot(df):
     fig = px.strip(df, y="miner", x=df.index, color="signal", color_discrete_sequence=["red", "#2CA02C"])
@@ -73,13 +83,70 @@ def ma_plot(df):
     fig.update_yaxes(dtick=0.05)
     fig.update_xaxes(dtick=24*6, tickformat="d")
     fig.add_hline(y=0.9)
+    fig.add_vline(first_height + 2016)
+    fig.update_layout(height=1000, showlegend=False)
     return fig
+
+def mining_power(df):
+    miners = df['miner'].unique()
+    block_counter = { name : 0 for name in miners }
+    rows = { name : [] for name in miners }
+
+    for (index, row) in df.iterrows():
+        block_counter[row.miner] += 1
+        window_start = index - 300
+        if df.index[0] <= window_start:
+            block_counter[df.loc[window_start]['miner']] -= 1
+
+        for (name, val) in block_counter.items():
+            rows[name].append(val)
+
+    color_map = {}
+    frac_map = {}
+    for name,gdf in df.groupby("miner"):
+        frac = gdf['signal'][-25:].mean()
+        c = Color(red=1,green=1)
+        if frac < 0.5:
+            c.green = frac * 2
+        else:
+            c.red -= frac
+        color_map[name] = c.hex
+        frac_map[name] = frac
+
+    data = pd.DataFrame(data=rows,index=df.index)
+    ordered_miners = data.columns.to_list()
+    ordered_miners.sort(key=lambda x: -frac_map[x])
+
+    fig = px.area(data[ordered_miners], color_discrete_map=color_map, groupnorm='fraction')
+    fig.update_xaxes(dtick=24*6, tickformat="d")
+    fig.update_layout(height=1000)
+    fig.update_layout(title={ 'text' : "Share of mining power with signal color", 'x': 0.5 })
+    fig.update_layout(showlegend=False)
+    fig.update_yaxes(dtick=0.1)
+    return fig
+
+def inconsistent_ma(df):
+    grouped = df.groupby("miner")
+    inconsistent = []
+    for name,gdf in grouped:
+        gdf[name] = gdf['signal'].rolling(window=20, min_periods=5).mean()
+        if gdf[name].iloc[-1] != 1.0 and gdf[name].iloc[-1] != 0.0 and not np.isnan(gdf[name].iloc[-1]):
+            inconsistent.append(gdf[name])
+
+    data = pd.concat(inconsistent,axis=1).fillna(method='ffill')
+    fig = px.line(data, range_y = [0,1])
+    fig.update_layout(title={ 'text' : "Inconsistent Miners (yellowy ones above)", 'x': 0.5 })
+    fig.update_yaxes(dtick=0.1)
+    fig.update_xaxes(dtick=24*6, tickformat="d")
+    fig.update_yaxes(categoryorder='max ascending')
+    return fig
+
 
 def steal_data():
     r = rq.get("https://taproot.watch/blocks")
     if r.status_code == 200:
         json = r.json()
-        df = pd.DataFrame([[row['height'],row['miner'],row['signals']] for row in json if 'miner' in row], columns =['height', 'miner', 'signal'])
+        df = pd.DataFrame([[row['height'],row.get('miner') or 'unknown',row['signals']] for row in json if 'signals' in row], columns =['height', 'miner', 'signal'])
         df.to_csv("data.csv", index=False)
     else:
         r.raise_for_status()
