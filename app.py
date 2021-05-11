@@ -63,7 +63,7 @@ def update_display(n):
     return text, ma_plot(df), scatter_plot(df),  mining_power(df), inconsistent_ma(df),
 
 def scatter_plot(df):
-    fig = px.strip(df, y="miner", x=df.index, color="signal", color_discrete_sequence=["red", "#2CA02C"])
+    fig = px.strip(df,x=df.index, y="miner", color="signal", color_discrete_sequence=["red", "#2CA02C"])
     fig.update_layout(height=1000)
     fig.update_xaxes(dtick=24*6, tickformat="d")
     fig.update_yaxes(categoryorder='total ascending', showgrid=True, tickson="boundaries",title=None)
@@ -111,7 +111,7 @@ def mining_power(df):
             green = frac * 2 * 255.0
         else:
             red -= frac
-        color_map[name] = 'rgba({:.3f},{:.3f},0, 0.5)'.format(red, green)
+        color_map[name] = 'rgba({:.3f},{:.3f},0, 0.4)'.format(red, green)
         frac_map[name] = frac
 
     data = pd.DataFrame(data=rows,index=df.index)
@@ -127,15 +127,16 @@ def mining_power(df):
             line=dict( color='black', width=0.3  ),
             fillcolor=color_map[name],
             stackgroup='one',
-            groupnorm='fraction'
+            groupnorm='fraction',
+            hoverinfo="name+y"
         ))
 
 
     fig.update_xaxes(dtick=24*6, tickformat="d")
     fig.update_layout(height=1000)
-    fig.update_layout(title={ 'text' : "Share of block creation with signal color based on last signaling fraction of last 25 blocks", 'x': 0.5 })
+    fig.update_layout(title={ 'text' : "Share of block creation with color based on signaling fraction of last 25 blocks", 'x': 0.5 })
     fig.update_layout(showlegend=False)
-    fig.update_yaxes(dtick=0.05, range=[0,1])
+    fig.update_yaxes(dtick=0.05, range=[0,1], side='right')
 
     return fig
 
