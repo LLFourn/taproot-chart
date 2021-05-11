@@ -1,5 +1,4 @@
 import dash
-from colour import Color
 import dash_core_components as dcc
 import dash_html_components as html
 import plotly.express as px
@@ -10,6 +9,7 @@ import sys
 import requests as rq
 import time
 from scipy.stats import binom
+import plotly.graph_objects as go
 import random
 
 
@@ -105,24 +105,38 @@ def mining_power(df):
     frac_map = {}
     for name,gdf in df.groupby("miner"):
         frac = gdf['signal'][-25:].mean()
-        c = Color(red=1,green=1)
+        red = 1
+        green = 1
         if frac < 0.5:
-            c.green = frac * 2
+            green = frac * 2 * 255.0
         else:
-            c.red -= frac
-        color_map[name] = c.hex
+            red -= frac
+        color_map[name] = 'rgba({:.3f},{:.3f},0, 0.5)'.format(red, green)
         frac_map[name] = frac
 
     data = pd.DataFrame(data=rows,index=df.index)
     ordered_miners = data.columns.to_list()
     ordered_miners.sort(key=lambda x: -frac_map[x])
 
-    fig = px.area(data[ordered_miners], color_discrete_map=color_map, groupnorm='fraction')
+    fig = go.Figure()
+    for name in ordered_miners:
+        fig.add_trace(go.Scatter(
+            name=name,
+            x=data.index,
+            y=data[name],
+            line=dict( color='black', width=0.3  ),
+            fillcolor=color_map[name],
+            stackgroup='one',
+            groupnorm='fraction'
+        ))
+
+
     fig.update_xaxes(dtick=24*6, tickformat="d")
     fig.update_layout(height=1000)
-    fig.update_layout(title={ 'text' : "Share of block creation with signal color", 'x': 0.5 })
+    fig.update_layout(title={ 'text' : "Share of block creation with signal color based on last signaling fraction of last 25 blocks", 'x': 0.5 })
     fig.update_layout(showlegend=False)
-    fig.update_yaxes(dtick=0.1)
+    fig.update_yaxes(dtick=0.05, range=[0,1])
+
     return fig
 
 def inconsistent_ma(df):
