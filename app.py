@@ -116,7 +116,7 @@ def mining_power(df):
 
     data = pd.DataFrame(data=rows,index=df.index)
     ordered_miners = data.columns.to_list()
-    ordered_miners.sort(key=lambda x: -frac_map[x])
+    ordered_miners.sort(key=lambda x: (-frac_map[x], -data[x].iloc[-1]))
 
     fig = go.Figure()
     for name in ordered_miners:
