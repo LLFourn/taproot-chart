@@ -130,15 +130,17 @@ def inconsistent_ma(df):
     inconsistent = []
     for name,gdf in grouped:
         gdf[name] = gdf['signal'].rolling(window=20, min_periods=5).mean()
-        if gdf[name].iloc[-1] != 1.0 and gdf[name].iloc[-1] != 0.0 and not np.isnan(gdf[name].iloc[-1]):
-            inconsistent.append(gdf[name])
+        signaling = gdf[ gdf['signal'] == True ]
+        if len(signaling) > 0:
+            if not gdf.loc[signaling.index[0]:]['signal'].all():
+                inconsistent.append(gdf[name])
 
     data = pd.concat(inconsistent,axis=1).fillna(method='ffill')
     fig = px.line(data, range_y = [0,1])
-    fig.update_layout(title={ 'text' : "Inconsistent Miners (yellowy ones above)", 'x': 0.5 })
+    fig.update_layout(title={ 'text' : "Inconsistent Miners who have didn't signal after their first signal (25 block moving average of signal fraction)", 'x': 0.5 })
     fig.update_yaxes(dtick=0.1)
     fig.update_xaxes(dtick=24*6, tickformat="d")
-    fig.update_yaxes(categoryorder='max ascending')
+    fig.update_yaxes(categoryorder='max ascending', title=None)
     return fig
 
 
