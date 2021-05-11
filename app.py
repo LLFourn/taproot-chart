@@ -105,7 +105,7 @@ def mining_power(df):
     frac_map = {}
     for name,gdf in df.groupby("miner"):
         # Look over the last 500 blocks
-        frac = gdf.loc[df.index[-500]:]['signal'].mean()
+        frac = gdf.loc[df.index[-300]:]['signal'].mean()
         if np.isnan(frac):
             # If they haven't produced any in last 500 look at overall mean
             frac = gdf['signal'][-10:].mean()
@@ -138,7 +138,7 @@ def mining_power(df):
 
     fig.update_xaxes(dtick=24*6, tickformat="d")
     fig.update_layout(height=1000)
-    fig.update_layout(title={ 'text' : "Miner share of last 300 blocks with color based on signaling fraction of last 25 blocks", 'x': 0.5 })
+    fig.update_layout(title={ 'text' : "Miner share of last 300 blocks with color based on signaling fraction of their blocks", 'x': 0.5 })
     fig.update_layout(showlegend=False)
     fig.update_yaxes(dtick=0.05, range=[0,1], side='right')
 
