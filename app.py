@@ -16,6 +16,7 @@ import random
 from dash.dependencies import Input, Output
 
 app = dash.Dash(__name__)
+BLOCKS_IN_A_DAY = 24 * 6
 
 app.layout = html.Div(children=[
     dcc.Markdown('''
@@ -65,7 +66,7 @@ def update_display(n):
 def scatter_plot(df):
     fig = px.strip(df,x=df.index, y="miner", color="signal", color_discrete_sequence=["red", "#2CA02C"])
     fig.update_layout(height=1000)
-    fig.update_xaxes(dtick=24*6, tickformat="d")
+    fig.update_xaxes(dtick=BLOCKS_IN_A_DAY, tickformat="d")
     fig.update_yaxes(categoryorder='total ascending', showgrid=True, tickson="boundaries",title=None)
     fig.update_layout(title={ 'text' :"Green Dot Good, Red Dot Bad (dots are blocks)", 'x': 0.5 })
     return fig
@@ -81,7 +82,7 @@ def ma_plot(df):
     fig = px.line(last_2016, y=["100BlockMA","line"], range_y = [0,1],  color_discrete_sequence=["blue", "#2CA02C"])
     fig.update_layout(title={ 'text' : "Number Go Up -- 100 block moving average with predicative green line (powered by deep learning)", 'x': 0.5 })
     fig.update_yaxes(dtick=0.05, title='signal fraction of last 100 blocks')
-    fig.update_xaxes(dtick=24*6, tickformat="d")
+    fig.update_xaxes(dtick=BLOCKS_IN_A_DAY, tickformat="d")
     fig.add_hline(y=0.9)
     fig.add_vline(first_height + 2016)
     fig.update_layout(height=1000, showlegend=False)
@@ -94,7 +95,7 @@ def mining_power(df):
 
     for (index, row) in df.iterrows():
         block_counter[row.miner] += 1
-        window_start = index - 300
+        window_start = index - 3*BLOCKS_IN_A_DAY
         if df.index[0] <= window_start:
             block_counter[df.loc[window_start]['miner']] -= 1
 
@@ -104,18 +105,19 @@ def mining_power(df):
     color_map = {}
     frac_map = {}
     for name,gdf in df.groupby("miner"):
-        # Look over the last 500 blocks
-        frac = gdf.loc[df.index[-300]:]['signal'].mean()
+        # Look over the last 3*BLOCKS_IN_A_DAY blocks
+        frac = gdf.loc[df.index[-3*BLOCKS_IN_A_DAY]:]['signal'].mean()
         if np.isnan(frac):
-            # If they haven't produced any in last 500 look at overall mean
+            # Otherwise look at mean for last 10
             frac = gdf['signal'][-10:].mean()
-        red = 1
-        green = 1
+        red = 255
+        green = 255
         if frac < 0.5:
-            green = frac * 2 * 255.0
+            green = frac * 2 * 255
         else:
-            red -= frac
-        color_map[name] = 'rgba({:.3f},{:.3f},0, 0.4)'.format(red, green)
+            red -= frac * 255
+        color_map[name] = 'rgba({},{},0, 0.4)'.format(red, green)
+        print(name, color_map[name], frac)
         frac_map[name] = frac
 
     data = pd.DataFrame(data=rows,index=df.index)
@@ -135,10 +137,9 @@ def mining_power(df):
             hoverinfo="name+y"
         ))
 
-
-    fig.update_xaxes(dtick=24*6, tickformat="d")
+    fig.update_xaxes(dtick=BLOCKS_IN_A_DAY, tickformat="d")
     fig.update_layout(height=1000)
-    fig.update_layout(title={ 'text' : "Miner share of last 300 blocks with color based on signaling fraction of their blocks", 'x': 0.5 })
+    fig.update_layout(title={ 'text' : "Miner share of last ~3 days of blocks with color indicating signaling fraction", 'x': 0.5 })
     fig.update_layout(showlegend=False)
     fig.update_yaxes(dtick=0.05, range=[0,1], side='right')
 
@@ -156,9 +157,9 @@ def inconsistent_ma(df):
 
     data = pd.concat(inconsistent,axis=1).fillna(method='ffill')
     fig = px.line(data, range_y = [0,1])
-    fig.update_layout(title={ 'text' : "Inconsistent Miners who have didn't signal after their first signal (25 block moving average of signal fraction)", 'x': 0.5 })
+    fig.update_layout(title={ 'text' : "Inconsistent Miners who have flucuated in their signaling (25 block moving average of signal fraction)", 'x': 0.5 })
     fig.update_yaxes(dtick=0.1)
-    fig.update_xaxes(dtick=24*6, tickformat="d")
+    fig.update_xaxes(dtick=BLOCKS_IN_A_DAY, tickformat="d")
     fig.update_yaxes(categoryorder='max ascending', title=None)
     return fig
 
@@ -174,5 +175,5 @@ def steal_data():
 
 if __name__ == '__main__':
     # To actually run in production use waitress_server.py
-    steal_data()
+#    steal_data()
     app.run_server(debug=True)
