@@ -1,4 +1,5 @@
 import dash
+import math
 import dash_core_components as dcc
 import dash_html_components as html
 import plotly.express as px
@@ -117,7 +118,6 @@ def mining_power(df):
         else:
             red -= frac * 255
         color_map[name] = 'rgba({},{},0, 0.4)'.format(red, green)
-        print(name, color_map[name], frac)
         frac_map[name] = frac
 
     data = pd.DataFrame(data=rows,index=df.index)
@@ -126,6 +126,10 @@ def mining_power(df):
 
     fig = go.Figure()
     for name in ordered_miners:
+        text = [None for _ in data.index]
+        frac_mining_power = data[name].iloc[-1] / (3*BLOCKS_IN_A_DAY)
+        if frac_mining_power > 0.01:
+            text[math.floor(len(data.index) * 0.9)] = name
         fig.add_trace(go.Scatter(
             name=name,
             x=data.index,
@@ -134,7 +138,10 @@ def mining_power(df):
             fillcolor=color_map[name],
             stackgroup='one',
             groupnorm='fraction',
-            hoverinfo="name+y"
+            hoverinfo="name+y",
+            mode="lines+text",
+            text=text,
+            textposition="bottom center"
         ))
 
     fig.update_xaxes(dtick=BLOCKS_IN_A_DAY, tickformat="d")
