@@ -64,31 +64,42 @@ def update_display(n):
         ])
     ]
 
-    return text, ma_plot(df), scatter_plot(df),  mining_power(df), inconsistent_ma(df),
+    return text, ma_plot(df),miner_dots(df),  mining_power(df), inconsistent_ma(df)
 
-def scatter_plot(df):
-    fig = px.strip(df,x=df.index, y="miner", color="signal", color_discrete_sequence=["red", "#2CA02C"])
-    fig.update_layout(height=1000)
-    fig.update_xaxes(dtick=BLOCKS_IN_A_DAY, tickformat="d")
-    fig.update_yaxes(categoryorder='total ascending', showgrid=True, tickson="boundaries",title=None)
-    fig.update_layout(title={ 'text' :"Green Dot Good, Red Dot Bad (dots are blocks)", 'x': 0.5 })
-    return fig
+def position_fig(fig,df):
+    last_height = df.index[-1]
+    first_show_height = max(last_height - 2016, df.index[0])
+    last_show_height =  max(last_height, df.index[0] + 2016)
+    counter = df.index[0] + 6*2016
+    while counter > df.index[0]:
+        fig.add_vline(counter)
+        counter -= 2016
+    fig.update_xaxes(dtick=BLOCKS_IN_A_DAY, tickformat="d", range=[first_show_height, last_show_height])
 
 def ma_plot(df):
     df['100BlockMA'] = df['signal'].rolling(window=100,min_periods=1).mean()
     d = np.polyfit(df.index.values, df['100BlockMA'], 1)
     f = np.poly1d(d)
-    last_2016 = df[-2016:].copy()
-    first_height = last_2016.index[0]
-    last_2016 = last_2016.reindex(np.arange(first_height, first_height + 2016))
-    last_2016['line'] = f(last_2016.index)
-    fig = px.line(last_2016, y=["100BlockMA","line"], range_y = [0,1],  color_discrete_sequence=["blue", "#2CA02C"])
+    # always chart up to the next signaling period
+    last_height = df.index[-1]
+    end_of_period = last_height - (last_height % 2016) + 2016
+    df = df.reindex(np.arange(df.index[0], end_of_period))
+    df['line'] = f(df.index)
+    fig = px.line(df, y=["100BlockMA","line"], range_y = [0,1],  color_discrete_sequence=["blue", "#2CA02C"])
     fig.update_layout(title={ 'text' : "Number Go Up -- 100 block moving average with predicative green line (powered by deep learning)", 'x': 0.5 })
     fig.update_yaxes(dtick=0.05, title='signal fraction of last 100 blocks')
-    fig.update_xaxes(dtick=BLOCKS_IN_A_DAY, tickformat="d")
     fig.add_hline(y=0.9)
-    fig.add_vline(first_height + 2016)
     fig.update_layout(height=1000, showlegend=False)
+    position_fig(fig,df)
+
+    return fig
+
+def miner_dots(df):
+    fig = px.strip(df,x=df.index, y="miner", color="signal", color_discrete_sequence=["red", "#2CA02C"])
+    fig.update_layout(height=1000)
+    fig.update_yaxes(categoryorder='total ascending', showgrid=True, tickson="boundaries",title=None)
+    fig.update_layout(title={ 'text' :"Green Dot Good, Red Dot Bad (dots are blocks)", 'x': 0.5 })
+    position_fig(fig,df)
     return fig
 
 def mining_power(df):
@@ -143,14 +154,14 @@ def mining_power(df):
             hoverinfo="name+y",
             mode="lines+text",
             text=text,
-            textposition="bottom center"
+            textposition="middle right"
         ))
 
-    fig.update_xaxes(dtick=BLOCKS_IN_A_DAY, tickformat="d")
     fig.update_layout(height=1000)
     fig.update_layout(title={ 'text' : "Miner share of last ~3 days of blocks with color indicating signaling fraction", 'x': 0.5 })
     fig.update_layout(showlegend=False)
     fig.update_yaxes(dtick=0.05, range=[0,1], side='right')
+    position_fig(fig,df)
 
     return fig
 
@@ -168,8 +179,8 @@ def inconsistent_ma(df):
     fig = px.line(data, range_y = [0,1])
     fig.update_layout(title={ 'text' : "Inconsistent Miners who have flucuated in their signaling (25 block moving average of signal fraction)", 'x': 0.5 })
     fig.update_yaxes(dtick=0.1)
-    fig.update_xaxes(dtick=BLOCKS_IN_A_DAY, tickformat="d")
     fig.update_yaxes(categoryorder='max ascending', title=None)
+    position_fig(fig,df)
     return fig
 
 def check_next_block_mempoolio(df, miner_match):
