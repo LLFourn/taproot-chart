@@ -23,9 +23,7 @@ app.layout = html.Div(children=[
     dcc.Markdown('''
     # LLFourn's Taproot Charts
 
-    Data lifted from [taproot.watch](https://taproot.watch). Code at https://github.com/LLFourn/taproot-chart.
-
-    THE START OF SECOND SIGNALING PERIOD HAS BROKEN ALL MY SPAGHETTI CODE. FIX IN 24 HOURS.
+    Data lifted from [taproot.watch](https://taproot.watch). Spaghetti code at https://github.com/LLFourn/taproot-chart.
     '''),
     html.Div(id='live-update-text'),
     dcc.Graph(
