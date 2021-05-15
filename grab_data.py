@@ -22,7 +22,7 @@ def check_loop_taproot_watch(check_pid):
 def check_loop_mempoolio(check_pid):
     miner_match = rq.get("https://raw.githubusercontent.com/0xB10C/known-mining-pools/master/pools.json").json()
     try:
-        df =  pd.read_csv("data.csv")
+        df =  pd.read_csv("assets/data.csv")
     except:
         df = None
     while True:
@@ -58,7 +58,7 @@ def check_next_block_mempoolio(df, miner_match):
         new_row = pd.DataFrame(data= { 'height': [height], 'signal' : [signal], 'miner' : [miner] })
         print(height, miner, signal)
         df = df.append(new_row)
-        df.to_csv("data.csv", index=False)
+        df.to_csv("assets/data.csv", index=False)
     elif r.status_code == 404:
         time.sleep(60)
     else:
@@ -73,7 +73,7 @@ def steal_data_taproot_watch():
     if r.status_code == 200:
         json = r.json()
         df = pd.DataFrame([[row['height'],row.get('miner') or 'unknown',row['signals']] for row in json if 'signals' in row], columns =['height', 'miner', 'signal'])
-        df.to_csv("data.csv", index=False)
+        df.to_csv("assets/data.csv", index=False)
     else:
         r.raise_for_status()
 

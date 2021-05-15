@@ -24,7 +24,8 @@ app.layout = html.Div(children=[
     dcc.Markdown('''
     # LLFourn's Taproot Charts
 
-    Data lifted from [taproot.watch](https://taproot.watch). Spaghetti code at https://github.com/LLFourn/taproot-chart.
+    Data lifted from [mempool.space](https://mempool.space). Available as a csv [here](/assets/data.csv). Spaghetti code at https://github.com/LLFourn/taproot-chart.
+    See also [taproot.watch](https://taproot.watch).
     '''),
     html.Div(id='live-update-text'),
     dcc.Graph(
@@ -57,7 +58,7 @@ app.layout = html.Div(children=[
               Output('inconsistent-chart', 'figure'),
               Input('interval-component', 'n_intervals'))
 def update_display(n):
-    df = pd.read_csv("data.csv",index_col='height')
+    df = pd.read_csv("assets/data.csv",index_col='height')
     text = [
         html.Ul(children=[
             html.Li(html.Span('Current Height: {}'.format(df.index[-1]))),
@@ -188,6 +189,47 @@ def inconsistent_ma(df):
     position_fig(fig,df)
     return fig
 
+def check_next_block_mempoolio(df, miner_match):
+    if df is None or len(df) < 1:
+        height = 681418
+        df = pd.DataFrame(columns=['height', 'miner', 'signal'])
+    else:
+        height = df.iat[-1,0] + 1;
+    r = rq.get("https://mempool.space/api/block-height/" + str(height))
+    if r.status_code == 200:
+        block_id = r.text
+        block_info = rq.get("https://mempool.space/api/block/" + block_id).json()
+        signal = (block_info["version"] & 0x04) == 0x04
+        coinbase_txid = rq.get("https://mempool.space/api/block/" + block_id + "/txid/0").text
+        res = rq.get("https://mempool.space/api/tx/" + coinbase_txid)
+        res.raise_for_status()
+        coinbase_tx = res.json()
+        coinbase_address = next(vout['scriptpubkey_address'] for vout in  coinbase_tx['vout'] if vout['scriptpubkey_type'] != 'op_return')
+        coinbase_tag = bytes.fromhex(coinbase_tx['vin'][0]['scriptsig']).decode('utf-8', 'replace')
+        miner = next((info['name'] for (tag,info) in miner_match['coinbase_tags'].items() if tag in coinbase_tag), None)
+        if miner is None:
+            miner = miner_match['payout_addresses'][coinbase_address]['name'] or "unknown"
+        new_row = pd.DataFrame(data= { 'height': [height], 'signal' : [signal], 'miner' : [miner] })
+        print(height, miner, signal)
+        df = df.append(new_row)
+        df.to_csv("assets/data.csv", index=False)
+    elif r.status_code == 404:
+        time.sleep(60)
+    else:
+        print(r.status_code, r.text)
+        time.sleep(600)
+
+    return df
+
+# can't get all data from here now https://github.com/hsjoberg/fork-explorer/issues/58
+def steal_data_taproot_watch():
+    r = rq.get("https://taproot.watch/blocks")
+    if r.status_code == 200:
+        json = r.json()
+        df = pd.DataFrame([[row['height'],row.get('miner') or 'unknown',row['signals']] for row in json if 'signals' in row], columns =['height', 'miner', 'signal'])
+        df.to_csv("assets/data.csv", index=False)
+    else:
+        r.raise_for_status()
 
 if __name__ == '__main__':
 #    To actually run in production use waitress_server.py
