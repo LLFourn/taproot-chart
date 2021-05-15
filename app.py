@@ -18,6 +18,7 @@ from dash.dependencies import Input, Output
 
 app = dash.Dash(__name__)
 BLOCKS_IN_A_DAY = 24 * 6
+config = {'modeBarButtonsToRemove': ['lasso2d', 'hoverCompareCartesian', 'toggleSpikelines', 'zoomIn2d', 'zoomOut2d', 'select2d'], 'modeBarButtonsToAdd' : ['drawopenpath', 'eraseshape']}
 
 app.layout = html.Div(children=[
     dcc.Markdown('''
@@ -28,15 +29,19 @@ app.layout = html.Div(children=[
     html.Div(id='live-update-text'),
     dcc.Graph(
         id='taproot-chart',
+        config=config,
     ),
     dcc.Graph(
-        id='scatter-chart'
+        id='scatter-chart',
+        config=config
     ),
     dcc.Graph(
-        id='mining-power-chart'
+        id='mining-power-chart',
+        config=config
     ),
     dcc.Graph(
-        id='inconsistent-chart'
+        id='inconsistent-chart',
+        config=config
     ),
     dcc.Interval(
         id='interval-component',
@@ -68,11 +73,13 @@ def position_fig(fig,df):
     last_height = df.index[-1]
     first_show_height = max(last_height - 2016, df.index[0])
     last_show_height =  max(last_height, df.index[0] + 2016)
-    counter = df.index[0] + 6*2016
+    end_of_period = last_height + (-last_height % 2016)
+    counter = end_of_period
     while counter > df.index[0]:
         fig.add_vline(counter)
         counter -= 2016
     fig.update_xaxes(dtick=BLOCKS_IN_A_DAY, tickformat="d", range=[first_show_height, last_show_height])
+    fig.update_layout(dragmode='pan')
 
 def ma_plot(df):
     df['100BlockMA'] = df['signal'].rolling(window=100,min_periods=1).mean()
@@ -181,47 +188,6 @@ def inconsistent_ma(df):
     position_fig(fig,df)
     return fig
 
-def check_next_block_mempoolio(df, miner_match):
-    if df is None or len(df) < 1:
-        height = 681418
-        df = pd.DataFrame(columns=['height', 'miner', 'signal'])
-    else:
-        height = df.iat[-1,0] + 1;
-    r = rq.get("https://mempool.space/api/block-height/" + str(height))
-    if r.status_code == 200:
-        block_id = r.text
-        block_info = rq.get("https://mempool.space/api/block/" + block_id).json()
-        signal = (block_info["version"] & 0x04) == 0x04
-        coinbase_txid = rq.get("https://mempool.space/api/block/" + block_id + "/txid/0").text
-        res = rq.get("https://mempool.space/api/tx/" + coinbase_txid)
-        res.raise_for_status()
-        coinbase_tx = res.json()
-        coinbase_address = next(vout['scriptpubkey_address'] for vout in  coinbase_tx['vout'] if vout['scriptpubkey_type'] != 'op_return')
-        coinbase_tag = bytes.fromhex(coinbase_tx['vin'][0]['scriptsig']).decode('utf-8', 'replace')
-        miner = next((info['name'] for (tag,info) in miner_match['coinbase_tags'].items() if tag in coinbase_tag), None)
-        if miner is None:
-            miner = miner_match['payout_addresses'][coinbase_address]['name'] or "unknown"
-        new_row = pd.DataFrame(data= { 'height': [height], 'signal' : [signal], 'miner' : [miner] })
-        print(height, miner, signal)
-        df = df.append(new_row)
-        df.to_csv("data.csv", index=False)
-    elif r.status_code == 404:
-        time.sleep(60)
-    else:
-        print(r.status_code, r.text)
-        time.sleep(600)
-
-    return df
-
-# can't get all data from here now https://github.com/hsjoberg/fork-explorer/issues/58
-def steal_data_taproot_watch():
-    r = rq.get("https://taproot.watch/blocks")
-    if r.status_code == 200:
-        json = r.json()
-        df = pd.DataFrame([[row['height'],row.get('miner') or 'unknown',row['signals']] for row in json if 'signals' in row], columns =['height', 'miner', 'signal'])
-        df.to_csv("data.csv", index=False)
-    else:
-        r.raise_for_status()
 
 if __name__ == '__main__':
 #    To actually run in production use waitress_server.py
