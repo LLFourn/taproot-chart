@@ -9,7 +9,6 @@ import os
 import sys
 import requests as rq
 import time
-from scipy.stats import binom
 import plotly.graph_objects as go
 import random
 
@@ -59,12 +58,16 @@ app.layout = html.Div(children=[
               Input('interval-component', 'n_intervals'))
 def update_display(n):
     df = pd.read_csv("assets/data.csv",index_col='height')
+    last_height = df.index[-1]
+    start_of_period = last_height - (last_height % 2016)
+    pct_for_period = df.loc[start_of_period:]['signal'].mean() * 100;
+
     text = [
         html.Ul(children=[
             html.Li(html.Span('Current Height: {}'.format(df.index[-1]))),
             html.Li(html.Span('{}/2016 completed for period'.format((df.index[-1] - df.index[0] + 1) % 2017 ))),
             html.Li(html.Span('{} of the last 100 blocks signaling'.format(df[-100:]['signal'].sum()))),
-            html.Li(html.Span('{:.2f}% chance that we have reached 90%'.format(1- binom.cdf(90,100, df[-100:]['signal'].sum()/100))))
+            html.Li(html.Span('{:.2f}% of this period’s blocks are signaling'.format(pct_for_period))),
         ])
     ]
 
