@@ -60,14 +60,21 @@ def update_display(n):
     df = pd.read_csv("assets/data.csv",index_col='height')
     last_height = df.index[-1]
     start_of_period = last_height - (last_height % 2016)
+    remaining = 2016 - (last_height % 2016)
+    this_period = df.loc[start_of_period:]
+    progress_to_goal = len(this_period[ this_period['signal'] == True ])
+    not_signaling = len(this_period) - progress_to_goal
     pct_for_period = df.loc[start_of_period:]['signal'].mean() * 100;
+    distance_from_goal = 1815 - progress_to_goal
+    blocks_completed_this_period = ((last_height - df.index[0]) % 2016 ) + 1
 
     text = [
         html.Ul(children=[
             html.Li(html.Span('Current Height: {}'.format(df.index[-1]))),
-            html.Li(html.Span('{}/2016 completed for period'.format((df.index[-1] - df.index[0] + 1) % 2017 ))),
-            html.Li(html.Span('{} of the last 100 blocks signaling'.format(df[-100:]['signal'].sum()))),
+            html.Li(html.Span('{}/2016 completed for period ({} remaining)'.format(blocks_completed_this_period, remaining))),
+            html.Li(html.Span('pogress to goal: {}/1815 (need {} more this period)'.format(progress_to_goal, distance_from_goal))),
             html.Li(html.Span('{:.2f}% of this period’s blocks are signaling'.format(pct_for_period))),
+            html.Li(html.Span('{} of the last 100 blocks signaling'.format(df[-100:]['signal'].sum()))),
         ])
     ]
 
