@@ -102,7 +102,7 @@ def ma_plot(df):
     df = df.reindex(np.arange(df.index[0], end_of_period))
     df['line'] = f(df.index)
     fig = px.line(df, y=["100BlockMA","line"], range_y = [0,1],  color_discrete_sequence=["blue", "#2CA02C"])
-    fig.update_layout(title={ 'text' : "Number Go Up -- 100 block moving average with predicative green line (powered by deep learning)", 'x': 0.5 })
+    fig.update_layout(title={ 'text' : "Number Go Up -- 100 block moving average with predictive green line (powered by deep learning)", 'x': 0.5 })
     fig.update_yaxes(dtick=0.05, title='signal fraction of last 100 blocks')
     fig.add_hline(y=0.9)
     fig.update_layout(height=1000, showlegend=False)
@@ -193,7 +193,7 @@ def inconsistent_ma(df):
 
     data = pd.concat(inconsistent,axis=1).fillna(method='ffill')
     fig = px.line(data, range_y = [0,1])
-    fig.update_layout(title={ 'text' : "Inconsistent Miners who have flucuated in their signaling (25 block moving average of signal fraction)", 'x': 0.5 })
+    fig.update_layout(title={ 'text' : "Inconsistent Miners who have fluctuated in their signaling (25 block moving average of signal fraction)", 'x': 0.5 })
     fig.update_yaxes(dtick=0.1)
     fig.update_yaxes(categoryorder='max ascending', title=None)
     position_fig(fig,df)
