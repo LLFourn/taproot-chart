@@ -54,7 +54,10 @@ def check_next_block_mempoolio(df, miner_match):
         coinbase_tag = bytes.fromhex(coinbase_tx['vin'][0]['scriptsig']).decode('utf-8', 'replace')
         miner = next((info['name'] for (tag,info) in miner_match['coinbase_tags'].items() if tag in coinbase_tag), None)
         if miner is None:
-            miner = miner_match['payout_addresses'][coinbase_address]['name'] or "unknown"
+            try:
+                miner = miner_match['payout_addresses'][coinbase_address]['name']
+            except KeyError:
+                miner = "unknown"
         new_row = pd.DataFrame(data= { 'height': [height], 'signal' : [signal], 'miner' : [miner] })
         print(height, miner, signal)
         df = df.append(new_row)
